@@ -1,0 +1,18 @@
+#sendBtn {
+    -fx-background-color: white;
+    -fx-border-color: black;
+    -fx-border-style: solid;
+}
+
+#sendBtn:hover {
+    -fx-background-color: black;
+    -fx-text-fill: white;
+}
+
+#textField {
+    -fx-border-color: black;
+}
+
+#textArea {
+    -fx-border-color: black;
+}

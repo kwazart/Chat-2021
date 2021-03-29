@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.net.URL?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?scenebuilder-stylesheet /styles/style.css?>
+
+
+
+<VBox alignment="center" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/8" fx:controller="sample.Controller">
+   <stylesheets><URL value="@/styles/style.css"/></stylesheets>
+   <TextArea fx:id="textArea" editable="false" VBox.vgrow="ALWAYS"/>
+   <HBox>
+      <TextField fx:id="textField" onAction="#sendMsg" promptText="Enter message..." HBox.hgrow="ALWAYS"/>
+      <Button fx:id="sendBtn" onAction="#sendMsg" text="Send"/>
+   </HBox>
+</VBox>
