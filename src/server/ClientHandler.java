@@ -10,6 +10,7 @@ public class ClientHandler {
 	private Socket socket;
 	private DataInputStream in;
 	private DataOutputStream out;
+	private String nickname;
 
 	public ClientHandler(ConsoleServer server, Socket socket) {
 		try {
@@ -20,6 +21,23 @@ public class ClientHandler {
 
 			new Thread(() -> {
 				try {
+					// auth - /auth login pass
+					while (true) {
+						String str = in.readUTF();
+						if (str.startsWith("/auth ")) {
+							String[] tokens = str.split(" ");
+							String nick = AuthService.getNicknameByLoginAndPassword(tokens[1], tokens[2]);
+							if (nick != null) {
+								sendMsg("/auth-OK");
+								setNickname(nick);
+								server.subscribe(ClientHandler.this);
+								break;
+							} else {
+								sendMsg("Wrong login/password");
+							}
+						}
+					}
+
 					while (true) {
 						String str = in.readUTF();
 						if ("/end".equals(str)) {
@@ -28,7 +46,7 @@ public class ClientHandler {
 							break;
 						}
 						System.out.printf("Client [%s] - %s\n", socket.getInetAddress(), str);
-						server.broadcastMessage(str);
+						server.broadcastMessage(nickname + ": " + str);
 					}
 				} catch (IOException e) {
 					e.printStackTrace();
@@ -50,11 +68,16 @@ public class ClientHandler {
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
+					server.unsubscribe(this);
 				}
 			}).start();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+
+	private void setNickname(String nick) {
+		this.nickname = nick;
 	}
 
 	public void sendMsg(String msg) {
