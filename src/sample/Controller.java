@@ -88,7 +88,7 @@ public class Controller {
 					while (true) {
 						String str  = in.readUTF();
 						if ("/serverClosed".equals(str)) {
-							break;
+							disconnect();
 						}
 						textArea.appendText(str + "\n");
 					}
@@ -124,14 +124,12 @@ public class Controller {
 	}
 
 	public void disconnect() {
-		try {
-			out.writeUTF("/end");
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
 
 		try {
-			socket.close();
+			if (socket != null || !socket.isClosed()) {
+				out.writeUTF("/end");
+				socket.close();
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

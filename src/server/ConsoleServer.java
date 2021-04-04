@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 import java.util.Vector;
 
@@ -53,10 +54,31 @@ public class ConsoleServer {
 		users.remove(client);
 	}
 
+	public boolean isNickUsed (String nick) {
+		for (ClientHandler c : users) {
+			if (c.getNickname().equals(nick)) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	public void broadcastMessage(String str) {
 		for (ClientHandler c : users) {
 			c.sendMsg(str);
 		}
 	}
+
+	public void sendPrivateMessage (String sender, String receiver, String message) {
+		String msg = String.format("%s: [отправлено для %s]: %s", sender, receiver, message);
+
+		System.out.println(msg);
+
+		for (ClientHandler c : users) {
+			if (receiver.equals(c.getNickname()) || sender.equals(c.getNickname())) {
+				c.sendMsg(msg);
+			}
+		}
+	}
+
 }

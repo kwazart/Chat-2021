@@ -11,7 +11,7 @@
    <stylesheets><URL value="@/styles/style.css"/></stylesheets>
    <HBox fx:id="upperPanel">
       <TextField HBox.hgrow="ALWAYS" promptText="Login" fx:id="loginField"/>
-      <PasswordField promptText="Pasword" fx:id="passwordField" onAction="#tryToAuth"/>
+      <PasswordField promptText="Password" fx:id="passwordField" onAction="#tryToAuth"/>
       <Button text="SignIn" onAction="#tryToAuth"/>
    </HBox>
 

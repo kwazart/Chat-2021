@@ -27,6 +27,13 @@ public class ClientHandler {
 						if (str.startsWith("/auth ")) {
 							String[] tokens = str.split(" ");
 							String nick = AuthService.getNicknameByLoginAndPassword(tokens[1], tokens[2]);
+
+							// запрет аутентификации с одной учётной записи
+							if (server.isNickUsed(nick)) {
+								sendMsg(String.format("User %s already authorized", nick));
+								sendMsg("/serverClosed");
+								continue;
+							}
 							if (nick != null) {
 								sendMsg("/auth-OK");
 								setNickname(nick);
@@ -45,8 +52,18 @@ public class ClientHandler {
 							System.out.printf("Client [%s] disconnected\n", socket.getInetAddress());
 							break;
 						}
-						System.out.printf("Client [%s] - %s\n", socket.getInetAddress(), str);
-						server.broadcastMessage(nickname + ": " + str);
+						if (str.startsWith("@")) {
+							String[] splitMsg = str.split(" ", 2);
+							if (splitMsg.length == 2) {
+								server.sendPrivateMessage(nickname, splitMsg[0].replaceFirst("@", ""), splitMsg[1]);
+							} else {
+								System.out.printf("Client [%s]: %s\n", socket.getInetAddress(), str);
+								server.broadcastMessage(nickname + ": " + str);
+							}
+						} else {
+							System.out.printf("Client [%s]: %s\n", socket.getInetAddress(), str);
+							server.broadcastMessage(nickname + ": " + str);
+						}
 					}
 				} catch (IOException e) {
 					e.printStackTrace();
@@ -78,6 +95,10 @@ public class ClientHandler {
 
 	private void setNickname(String nick) {
 		this.nickname = nick;
+	}
+
+	public String getNickname() {
+		return nickname;
 	}
 
 	public void sendMsg(String msg) {
