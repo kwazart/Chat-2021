@@ -15,13 +15,14 @@ public class Main extends Application {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("sample.fxml"));
         Parent root = loader.load();
         primaryStage.setTitle("Chat 2021");
-        primaryStage.setScene(new Scene(root, 400, 300));
+        primaryStage.setScene(new Scene(root, 600, 450));
         primaryStage.show();
-        primaryStage.setOnCloseRequest(event -> {
-            Controller controller = loader.getController();
-            controller.disconnect();
+        primaryStage.setOnCloseRequest(new EventHandler<WindowEvent>() {
+            public void handle(WindowEvent we) {
+                Controller controller = loader.getController();
+                controller.disconnect();
+            }
         });
-
     }
 
 
