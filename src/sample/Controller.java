@@ -17,24 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
 
-import javafx.application.Platform;
-import javafx.event.ActionEvent;
-import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
-import javafx.scene.control.*;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.HBox;
-
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.net.Socket;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.ResourceBundle;
-
-
 public class Controller implements Initializable {
 	@FXML
 	TextArea chatArea;
@@ -111,6 +93,23 @@ public class Controller implements Initializable {
 			userName.setText("test");
 			socket = new Socket(ADDRESS, PORT);
 
+			// отключение неавторизованных пользователей по таймауту (120 сек. ждём после подключения клиента, и если он не авторизовался за это время, закрываем соединение).
+			new Thread(()-> {
+				try {
+					Thread.sleep(120000);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				if (!isAuthorized) {
+					try {
+						out.writeUTF("/timeout");
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+
+			}).start();
+
 			in = new DataInputStream(socket.getInputStream());
 			out = new DataOutputStream(socket.getOutputStream());
 
@@ -133,7 +132,8 @@ public class Controller implements Initializable {
 
 					while (true) {
 						String str = in.readUTF();
-						if ("/serverClosed".equals(str)) {
+						if ("/serverClosed".equals(str) || "/timeout".equals(str)) {
+							System.out.println(str);
 							break;
 						}
 						if (str.startsWith("/clientList ")) {
@@ -155,6 +155,10 @@ public class Controller implements Initializable {
 					e.printStackTrace();
 				} finally {
 					try {
+						// отправляем историю
+						String s = chatArea.getText();
+						out.writeUTF("/history " + s);
+						out.flush();
 						socket.close();
 					} catch (IOException e) {
 						e.printStackTrace();
@@ -185,6 +189,8 @@ public class Controller implements Initializable {
 		if (socket != null) {
 			if (!socket.isClosed()) {
 				try {
+					String s = chatArea.getText();
+					out.writeUTF("/history " + s);
 					out.writeUTF("/end");
 				} catch (IOException e) {
 					e.printStackTrace();

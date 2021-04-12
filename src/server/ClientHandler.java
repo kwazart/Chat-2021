@@ -14,6 +14,7 @@ public class ClientHandler {
 	private DataOutputStream out;
 	private DataInputStream in;
 	private String nickname;
+	private String history;
 
 	// черный список у пользователя, а не у сервера
 	List<String> blackList;
@@ -25,6 +26,7 @@ public class ClientHandler {
 			this.in = new DataInputStream(socket.getInputStream());
 			this.out = new DataOutputStream(socket.getOutputStream());
 			this.blackList = new ArrayList<>();
+			history = null;
 
 			new Thread(() -> {
 				boolean isExit = false;
@@ -39,6 +41,8 @@ public class ClientHandler {
 									sendMsg("/auth-OK");
 									setNickname(nick);
 									server.subscribe(ClientHandler.this);
+									// загружаем чёрный список из БД
+									blackList.addAll(AuthService.getBlacklist(nickname));
 									break;
 								} else {
 									sendMsg("Учетная запись уже используется");
@@ -62,6 +66,13 @@ public class ClientHandler {
 							isExit = true;
 							break;
 						}
+
+						if ("/timeout".equals(str)) {
+							out.writeUTF("/timeout");
+							System.out.println("Client (" + socket.getInetAddress() + ") disconnected " +
+									"(timeout)");
+							break;
+						}
 					}
 
 					if (!isExit) {
@@ -80,11 +91,23 @@ public class ClientHandler {
 									String[] tokens = str.split(" ", 2);
 									server.sendPrivateMsg(this, tokens[0].substring(1), tokens[1]);
 								}
-								// черный список для пользователя. но пока что только в рамках одного запуска программы
+
+								// черный список для пользователя.
+								// доработан: сохраняется в БД
 								if (str.startsWith("/blacklist ")) {
 									String[] tokens = str.split(" ");
-									blackList.add(tokens[1]);
-									sendMsg("You added " + tokens[1] + " to blacklist");
+									if (!nickname.equals(tokens[1])) {
+										blackList.add(tokens[1]);
+										sendMsg("You added " + tokens[1] + " to blacklist");
+									}
+								}
+
+								// История сообщений (хранить в БД в новой таблице)
+								if (str.startsWith("/history ")) {
+									String[] tokens = str.split(" ", 2);
+									history = tokens[1];
+									AuthService.saveHistory(nickname, history);
+									break;
 								}
 							} else {
 								server.broadcastMessage(this, nickname +": " + str);
@@ -110,7 +133,13 @@ public class ClientHandler {
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
-					server.unsubscribe(this);
+					if (server.isNickBusy(nickname)) {
+						// сохраняем чёрный список в БД
+						AuthService.setBlacklist(nickname, blackList);
+						server.unsubscribe(this);
+					}
+
+
 				}
 			}).start();
 		} catch (IOException e) {

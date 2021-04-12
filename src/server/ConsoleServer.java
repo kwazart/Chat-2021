@@ -1,12 +1,8 @@
 package server;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Scanner;
 import java.util.Vector;
 
 public class ConsoleServer {
@@ -77,9 +73,12 @@ public class ConsoleServer {
 
 	public void sendPrivateMsg(ClientHandler nickFrom, String nickTo, String msg) {
 		for (ClientHandler c : users) {
-			if (c.getNickname().equals(nickTo)) {
-				if (!nickFrom.getNickname().equals(nickTo)) {
-					c.sendMsg(nickFrom.getNickname() + ": [Send for " + nickTo + "] " + msg);
+			if (c.getNickname().equals(nickTo)) {   // выбираем нужного получателя
+				if (!nickFrom.getNickname().equals(nickTo)) {   // не отправлять сообщение самому себе
+					if (!c.checkBlackList(nickFrom.getNickname())) {    // если чёрный список получателя НЕ
+						// содержит ник отправителя, то отправляем ему сообщение
+						c.sendMsg(nickFrom.getNickname() + ": [Send for " + nickTo + "] " + msg);
+					}
 					nickFrom.sendMsg(nickFrom.getNickname() + ": [Send for " + nickTo + "] " + msg);
 				}
 			}
