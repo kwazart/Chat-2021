@@ -90,25 +90,9 @@ public class Controller implements Initializable {
 
 	public void connect() {
 		try {
+
 			userName.setText("test");
 			socket = new Socket(ADDRESS, PORT);
-
-			// отключение неавторизованных пользователей по таймауту (120 сек. ждём после подключения клиента, и если он не авторизовался за это время, закрываем соединение).
-			new Thread(()-> {
-				try {
-					Thread.sleep(120000);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-				if (!isAuthorized) {
-					try {
-						out.writeUTF("/timeout");
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				}
-
-			}).start();
 
 			in = new DataInputStream(socket.getInputStream());
 			out = new DataOutputStream(socket.getOutputStream());
@@ -135,8 +119,7 @@ public class Controller implements Initializable {
 						if ("/serverClosed".equals(str) || "/timeout".equals(str)) {
 							System.out.println(str);
 							break;
-						}
-						if (str.startsWith("/clientList ")) {
+						} else if (str.startsWith("/clientList ")) {
 							String[] tokens = str.split(" ");
 							Platform.runLater(new Runnable() {
 								@Override
@@ -147,6 +130,8 @@ public class Controller implements Initializable {
 									}
 								}
 							});
+						} else if (str.startsWith("/history ")) {
+							chatArea.setText(str.replaceFirst("/history ", ""));
 						} else {
 							chatArea.appendText(str + "\n");
 						}
@@ -155,10 +140,6 @@ public class Controller implements Initializable {
 					e.printStackTrace();
 				} finally {
 					try {
-						// отправляем историю
-						String s = chatArea.getText();
-						out.writeUTF("/history " + s);
-						out.flush();
 						socket.close();
 					} catch (IOException e) {
 						e.printStackTrace();
@@ -189,8 +170,6 @@ public class Controller implements Initializable {
 		if (socket != null) {
 			if (!socket.isClosed()) {
 				try {
-					String s = chatArea.getText();
-					out.writeUTF("/history " + s);
 					out.writeUTF("/end");
 				} catch (IOException e) {
 					e.printStackTrace();

@@ -1,8 +1,9 @@
 package server;
 
 import java.sql.*;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 
 public class AuthService {
@@ -65,87 +66,110 @@ public class AuthService {
 	/*
 	* Сохраняет чёрный список в БД
 	*/
-	public static void setBlacklist(String nickname, List<String> blackList) {
-		StringBuilder sb = new StringBuilder();
+	public static int addUserToBlacklist(String owner, String blackClient) {
+		PreparedStatement ps = null;
+		try {
+			ps = connection.prepareStatement("INSERT INTO blacklist (owner, black) VALUES (?, ?)");
+			ps.setString(1, owner);
+			ps.setString(2, blackClient);
+			return ps.executeUpdate();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			statementClose(ps);
+		}
 
-		if (blackList.size() == 0) {
-			sb.setLength(0);
+		return 0;
+	}
+
+	public static int deleteUserFromBlacklist(String owner, String blackClient) {
+		PreparedStatement ps = null;
+		try {
+			ps = connection.prepareStatement("DELETE FROM blacklist WHERE owner = ? AND black = ?");
+			ps.setString(1, owner);
+			ps.setString(2, blackClient);
+			return ps.executeUpdate();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			statementClose(ps);
 		}
-		if (blackList.size() == 1 ) {
-			sb.setLength(0);
-			sb.append(blackList.get(0));
-		} else {
-			sb.setLength(0);
-			for (int i = 0; i < blackList.size(); i++) {
-				sb.append(blackList.get(i));
-				if (i < blackList.size() - 1) {
-					sb.append(";");
-				}
-			}
-		}
+		return 0;
+	}
+
+	public static List<String> getBlackListByNickname (String nickname) {
+		List<String> blacklist = new ArrayList<>();
+		PreparedStatement ps = null;
+		ResultSet rs = null;
 
 		try {
-			String query = String.format("UPDATE users SET blacklist = '%s' WHERE nickname = '%s';", sb, nickname);
-			PreparedStatement ps = connection.prepareStatement(query);
+			ps = connection.prepareStatement("SELECT * FROM blacklist WHERE owner = ?");
+			ps.setString(1, nickname);
+			rs = ps.executeQuery();
+
+			while (rs.next()) {
+				blacklist.add(rs.getString(2));
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			resultSetClose(rs);
+			statementClose(ps);
+		}
+		return blacklist;
+	}
+
+	private static void statementClose(PreparedStatement ps) {
+		try {
+			ps.close();
+		} catch (SQLException throwables) {
+			throwables.printStackTrace();
+		}
+	}
+
+	private static void resultSetClose(ResultSet rs) {
+		try {
+			rs.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public static void saveHistory (String nickname, String message) {
+		try {
+			SimpleDateFormat formater = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+			Date date = new Date();
+
+			PreparedStatement ps = connection.prepareStatement("INSERT INTO history (date_time, nickname, message) " +
+					"VALUES (?, ?, ?);");
+			ps.setString(1, formater.format(date));
+			ps.setString(2, nickname);
+			ps.setString(3, message);
 			ps.executeUpdate();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
 	}
 
-	/*
-	 * Загружает чёрный список из БД
-	 */
-	public static List<String> getBlacklist(String nickname) {
-		String query = String.format("SELECT blacklist FROM users WHERE nickname = '%s'", nickname);
-		String str = null;
-		String temp = null;
+	public static String getHistory(String nickname) {
+		StringBuilder builder = new StringBuilder("/history ");
+		PreparedStatement ps = null;
+		ResultSet rs = null;
+
 		try {
-			ResultSet rs = statement.executeQuery(query);
-			if (rs.next()) {
-				str = rs.getString(1);
+			ps = connection.prepareStatement("SELECT message FROM history WHERE nickname = ?");
+			ps.setString(1, nickname);
+			rs = ps.executeQuery();
+
+			while (rs.next()) {
+				builder.append(rs.getString("message") + "\n");
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
+		} finally {
+			resultSetClose(rs);
+			statementClose(ps);
 		}
-		if (str != null) {
-			if ("".equals(str)) {
-				return Arrays.asList("");
-			} else if (str.contains(";")) {
-				String[] list = str.split(";");
-				return Arrays.asList(list);
-			} else {
-				return Arrays.asList(str);
-			}
-		}
-		return new ArrayList<>();
-	}
-
-	public static void saveHistory (String nickname, String history) {
-		boolean isUpdated = false;
-
-		String query = String.format("SELECT nickname FROM history WHERE nickname = '%s'", nickname);
-		try {
-			ResultSet rs = statement.executeQuery(query); // возвращает выборку через select
-
-			if (rs.next()) {
-				String updQuery = String.format("UPDATE history SET message_history = '%s' WHERE nickname = '%s';",
-						history,
-						nickname);
-				PreparedStatement update = connection.prepareStatement(updQuery);
-				update.executeUpdate();
-				isUpdated = true;
-			}
-
-			if (!isUpdated) {
-				String insertQuery = "INSERT INTO history (nickname, message_history) VALUES (?, ?);";
-				PreparedStatement insert = connection.prepareStatement(insertQuery);
-				insert.setString(1, nickname);
-				insert.setString(2, history);
-				insert.executeUpdate();
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
+		return builder.toString();
 	}
 }

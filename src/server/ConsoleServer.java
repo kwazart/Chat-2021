@@ -27,30 +27,37 @@ public class ConsoleServer {
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
-			try {
-				System.out.printf("Client [%s] disconnected", socket.getInetAddress());
-				socket.close();
-			} catch (IOException e) {
-				e.printStackTrace();
+
+			if (socket != null) {
+				try {
+					System.out.printf("Client [%s] disconnected", socket.getInetAddress());
+					socket.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
-			try {
-				server.close();
-			} catch (IOException e) {
-				e.printStackTrace();
+
+			if (server != null) {
+				try {
+					server.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
+
 			AuthService.disconnect();
 		}
 	}
 
 	public void subscribe(ClientHandler client) {
 		users.add(client);
-		System.out.println(String.format("User [%s] connected", client.getNickname()));
+		System.out.printf("User [%s] connected%n", client.getNickname());
 		broadcastClientsList();
 	}
 
 	public void unsubscribe(ClientHandler client) {
 		users.remove(client);
-		System.out.println(String.format("User [%s] disconnected", client.getNickname()));
+		System.out.printf("User [%s] disconnected%n", client.getNickname());
 		broadcastClientsList();
 	}
 
@@ -89,7 +96,8 @@ public class ConsoleServer {
 		StringBuilder sb = new StringBuilder();
 		sb.append("/clientList ");
 		for (ClientHandler c : users) {
-			sb.append(c.getNickname() + " ");
+			sb.append(c.getNickname());
+			sb.append(" ");
 		}
 
 		String out = sb.toString();

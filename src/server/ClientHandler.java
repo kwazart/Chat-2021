@@ -9,28 +9,26 @@ import java.util.List;
 
 public class ClientHandler {
 
-	private ConsoleServer server;
-	private Socket socket;
 	private DataOutputStream out;
 	private DataInputStream in;
 	private String nickname;
-	private String history;
 
 	// черный список у пользователя, а не у сервера
 	List<String> blackList;
 
 	public ClientHandler(ConsoleServer server, Socket socket) {
 		try {
-			this.server = server;
-			this.socket = socket;
 			this.in = new DataInputStream(socket.getInputStream());
 			this.out = new DataOutputStream(socket.getOutputStream());
 			this.blackList = new ArrayList<>();
-			history = null;
+			this.nickname = null;
 
 			new Thread(() -> {
 				boolean isExit = false;
 				try {
+					// отключение неавторизованных пользователей по таймауту
+					// (120 сек. ждём после подключения клиента, и если он не авторизовался за это время, закрываем соединение).
+					socket.setSoTimeout(120000);
 					while (true) {
 						String str = in.readUTF();
 						if (str.startsWith("/auth")){
@@ -40,9 +38,12 @@ public class ClientHandler {
 								if (!server.isNickBusy(nick)) {
 									sendMsg("/auth-OK");
 									setNickname(nick);
+									socket.setSoTimeout(0);
 									server.subscribe(ClientHandler.this);
 									// загружаем чёрный список из БД
-									blackList.addAll(AuthService.getBlacklist(nickname));
+									blackList.addAll(AuthService.getBlackListByNickname(nickname));
+									// загружаем историю сообщений
+									loadHistory();
 									break;
 								} else {
 									sendMsg("Учетная запись уже используется");
@@ -66,13 +67,6 @@ public class ClientHandler {
 							isExit = true;
 							break;
 						}
-
-						if ("/timeout".equals(str)) {
-							out.writeUTF("/timeout");
-							System.out.println("Client (" + socket.getInetAddress() + ") disconnected " +
-									"(timeout)");
-							break;
-						}
 					}
 
 					if (!isExit) {
@@ -93,21 +87,25 @@ public class ClientHandler {
 								}
 
 								// черный список для пользователя.
-								// доработан: сохраняется в БД
+								// сохраняем чёрный список в БД
 								if (str.startsWith("/blacklist ")) {
 									String[] tokens = str.split(" ");
-									if (!nickname.equals(tokens[1])) {
-										blackList.add(tokens[1]);
-										sendMsg("You added " + tokens[1] + " to blacklist");
-									}
-								}
+									if (AuthService.getBlackListByNickname(nickname).contains(tokens[1])) {
+										if(AuthService.deleteUserFromBlacklist(nickname, tokens[1]) == 1) {
+											blackList.remove(tokens[1]);
+											sendMsg("You exclude " + tokens[1] + " from blacklist");
+										} else {
+											sendMsg("Something wrong. Can't exclude");
+										}
 
-								// История сообщений (хранить в БД в новой таблице)
-								if (str.startsWith("/history ")) {
-									String[] tokens = str.split(" ", 2);
-									history = tokens[1];
-									AuthService.saveHistory(nickname, history);
-									break;
+									} else {
+										if (AuthService.addUserToBlacklist(nickname, tokens[1]) == 1) {
+											blackList.add(tokens[1]);
+											sendMsg("You added " + tokens[1] + " to blacklist");
+										} else {
+											sendMsg("Something wrong. Can't add");
+										}
+									}
 								}
 							} else {
 								server.broadcastMessage(this, nickname +": " + str);
@@ -134,8 +132,6 @@ public class ClientHandler {
 						e.printStackTrace();
 					}
 					if (server.isNickBusy(nickname)) {
-						// сохраняем чёрный список в БД
-						AuthService.setBlacklist(nickname, blackList);
 						server.unsubscribe(this);
 					}
 
@@ -148,6 +144,11 @@ public class ClientHandler {
 	}
 
 	public void sendMsg(String msg) {
+		// История сообщений (хранить в БД в новой таблице)
+		if(nickname != null && !msg.startsWith("/clientList ")) {
+			AuthService.saveHistory(nickname, msg);
+		}
+
 		try {
 			out.writeUTF(msg);
 		} catch (IOException e) {
@@ -165,5 +166,14 @@ public class ClientHandler {
 
 	public boolean checkBlackList(String nickname) {
 		return blackList.contains(nickname);
+	}
+
+
+	private void loadHistory() {
+		try {
+			out.writeUTF(AuthService.getHistory(nickname));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 }
